@@ -11,6 +11,24 @@
             margin: 0;
             padding: 0;
         }
+        #room-container {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .chat-room {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background: #e6f7ff;
+            cursor: pointer;
+        }
+        .chat-room:hover {
+            background: #d0ebff;
+        }
         #chat-container {
             width: 100%;
             height: 400px;
@@ -53,6 +71,7 @@
 </head>
 <body>
     <h1>Chat Application</h1>
+    <div id="room-container"></div>
     <div id="chat-container"></div>
     <div id="controls">
         <input id="user-input" type="text" placeholder="Your name">
@@ -65,23 +84,44 @@
 
         // Firebase 設定
         const firebaseConfig = {
-          apiKey: "AIzaSyCJl6C4tIPfUIs9GrzRSUMujx2pW9a0RJU",
-          authDomain: "chatline-f3c80.firebaseapp.com",
-          projectId: "chatline-f3c80",
-          storageBucket: "chatline-f3c80.firebasestorage.app",
-          messagingSenderId: "285961629279",
-          appId: "1:285961629279:web:cf23a01d0f3bb44dd835ea",
-          measurementId: "G-Y0HXRRVR66"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         // Firebase 初期化
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        let currentRoom = null;
+
+        // チャットルームの取得
+        function loadRooms(callback) {
+            const q = query(collection(db, "rooms"));
+            onSnapshot(q, (snapshot) => {
+                const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                callback(rooms);
+            });
+        }
+
+        // メッセージの取得（リアルタイム）
+        function loadMessages(callback) {
+            if (!currentRoom) return;
+            const q = query(collection(db, `rooms/${currentRoom}/messages`), orderBy("timestamp"));
+            onSnapshot(q, (snapshot) => {
+                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                callback(messages);
+            });
+        }
+
         // メッセージの送信
         async function sendMessage(user, text) {
+            if (!currentRoom) return;
             try {
-                await addDoc(collection(db, "messages"), {
+                await addDoc(collection(db, `rooms/${currentRoom}/messages`), {
                     user: user,
                     text: text,
                     timestamp: new Date().toISOString()
@@ -91,16 +131,23 @@
             }
         }
 
-        // メッセージの取得（リアルタイム）
-        function loadMessages(callback) {
-            const q = query(collection(db, "messages"), orderBy("timestamp"));
-            onSnapshot(q, (snapshot) => {
-                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                callback(messages);
+        // UI: チャットルームの表示
+        function renderRooms(rooms) {
+            const roomContainer = document.getElementById("room-container");
+            roomContainer.innerHTML = "";
+            rooms.forEach(room => {
+                const roomElement = document.createElement("div");
+                roomElement.classList.add("chat-room");
+                roomElement.innerHTML = room.name;
+                roomElement.addEventListener("click", () => {
+                    currentRoom = room.id;
+                    loadMessages(renderChat);
+                });
+                roomContainer.appendChild(roomElement);
             });
         }
 
-        // UI の生成
+        // UI: チャットメッセージの表示
         function renderChat(messages) {
             const chatContainer = document.getElementById("chat-container");
             chatContainer.innerHTML = "";
@@ -118,7 +165,7 @@
             const messageInput = document.getElementById("message-input");
             const userInput = document.getElementById("user-input");
 
-            loadMessages(renderChat);
+            loadRooms(renderRooms);
 
             sendButton.addEventListener("click", () => {
                 const text = messageInput.value.trim();
