@@ -1,0 +1,68 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+
+// Firebase 設定
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Firebase 初期化
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// メッセージの送信
+async function sendMessage(user, text) {
+    try {
+        await addDoc(collection(db, "messages"), {
+            user: user,
+            text: text,
+            timestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("Error adding document: ", e);
+    }
+}
+
+// メッセージの取得（リアルタイム）
+function loadMessages(callback) {
+    const q = query(collection(db, "messages"), orderBy("timestamp"));
+    onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        callback(messages);
+    });
+}
+
+// UI の生成
+function renderChat(messages) {
+    const chatContainer = document.getElementById("chat-container");
+    chatContainer.innerHTML = "";
+    messages.forEach(msg => {
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("chat-message");
+        messageElement.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+        chatContainer.appendChild(messageElement);
+    });
+}
+
+// イベントリスナー
+window.onload = () => {
+    const sendButton = document.getElementById("send-button");
+    const messageInput = document.getElementById("message-input");
+    const userInput = document.getElementById("user-input");
+    
+    loadMessages(renderChat);
+    
+    sendButton.addEventListener("click", () => {
+        const text = messageInput.value.trim();
+        const user = userInput.value.trim();
+        if (text && user) {
+            sendMessage(user, text);
+            messageInput.value = "";
+        }
+    });
+};
