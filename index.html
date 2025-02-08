@@ -1,181 +1,280 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Application</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-        }
-        #room-container {
-            width: 100%;
-            background: #fff;
-            border: 1px solid #ddd;
-            margin: 20px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .chat-room {
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            background: #e6f7ff;
-            cursor: pointer;
-        }
-        .chat-room:hover {
-            background: #d0ebff;
-        }
-        #chat-container {
-            width: 100%;
-            height: 400px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #ddd;
-            margin: 20px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .chat-message {
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            background: #e6f7ff;
-        }
-        .chat-message strong {
-            display: block;
-            color: #007bff;
-        }
-        #controls {
-            display: flex;
-            gap: 10px;
-        }
-        #controls input, #controls button {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        #controls button {
-            background: #007bff;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-        }
-        #controls button:hover {
-            background: #0056b3;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat Application</title>
+  <style>
+    /* 全体レイアウト：左側にチャットルーム一覧、右側にチャットエリア */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      height: 100vh;
+    }
+    /* サイドバー：チャットルーム一覧 */
+    #sidebar {
+      width: 250px;
+      background: #fff;
+      border-right: 1px solid #ddd;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    #sidebar h2 {
+      margin-top: 0;
+      font-size: 1.2em;
+    }
+    .chatroom-item {
+      padding: 10px;
+      margin-bottom: 5px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .chatroom-item.active {
+      background-color: #e6f7ff;
+    }
+    /* チャットエリア */
+    #chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    /* チャットヘッダー */
+    #chat-header {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      background: #fff;
+      font-size: 1.1em;
+    }
+    /* メッセージ表示エリア */
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background: #fff;
+    }
+    .chat-message {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+    .message-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .message-time {
+      color: #777;
+      font-size: 0.8em;
+      margin-left: 5px;
+    }
+    .read-receipt {
+      margin-top: 5px;
+      font-size: 0.8em;
+      color: green;
+    }
+    /* 下部コントロール部 */
+    #chat-controls {
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+    #chat-actions {
+      margin-bottom: 10px;
+    }
+    #chat-actions button {
+      margin-right: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 3px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    #chat-actions button:hover {
+      background: #0056b3;
+    }
+    #message-form {
+      display: flex;
+    }
+    #message-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    #send-button {
+      padding: 10px;
+      margin-left: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    #send-button:hover {
+      background: #0056b3;
+    }
+  </style>
 </head>
 <body>
-    <h1>Chat Application</h1>
-    <div id="room-container"></div>
+  <!-- チャットルーム一覧 -->
+  <div id="sidebar">
+    <h2>チャットルーム一覧</h2>
+    <div id="chatrooms-container"></div>
+  </div>
+
+  <!-- チャットエリア -->
+  <div id="chat-area">
+    <div id="chat-header">チャットルームを選択してください</div>
     <div id="chat-container"></div>
-    <div id="controls">
-        <input id="user-input" type="text" placeholder="Your name">
-        <input id="message-input" type="text" placeholder="Enter message">
-        <button id="send-button">Send</button>
+    <div id="chat-controls">
+      <div id="chat-actions">
+        <button id="search-button">🔍検索</button>
+        <button id="export-button">📄履歴エクスポート</button>
+        <button id="voice-button">🎤音声メモ</button>
+      </div>
+      <form id="message-form">
+        <input id="message-input" type="text" placeholder="📝 テキスト入力…">
+        <button id="send-button" type="submit">送信</button>
+      </form>
     </div>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+  </div>
 
-        // Firebase 設定
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getFirestore, collection, addDoc, query, orderBy, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
-        // Firebase 初期化
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    // Firebase の設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJl6C4tIPfUIs9GrzRSUMujx2pW9a0RJU",
+      authDomain: "chatline-f3c80.firebaseapp.com",
+      projectId: "chatline-f3c80",
+      storageBucket: "chatline-f3c80.firebasestorage.app",
+      messagingSenderId: "285961629279",
+      appId: "1:285961629279:web:cf23a01d0f3bb44dd835ea",
+      measurementId: "G-Y0HXRRVR66"
+    };
 
-        let currentRoom = null;
+    // Firebase 初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        // チャットルームの取得
-        function loadRooms(callback) {
-            const q = query(collection(db, "rooms"));
-            onSnapshot(q, (snapshot) => {
-                const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                callback(rooms);
-            });
+    // 現在選択中のチャットルームを管理
+    let currentRoomId = null;
+    let currentRoomName = "";
+
+    // メッセージ送信（現在選択中のチャットルームへ）
+    async function sendMessage(text) {
+      if (!currentRoomId) return;
+      try {
+        await addDoc(collection(db, "messages"), {
+          roomId: currentRoomId,
+          // ここでは例として「匿名」としていますが、ユーザー名の取得方法に応じて変更してください
+          user: "匿名",
+          text: text,
+          timestamp: new Date().toISOString(),
+          // readBy などのフィールドも必要に応じて追加可能
+          readBy: []
+        });
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      }
+    }
+
+    // 選択中のチャットルームのメッセージを取得（リアルタイム更新）
+    function loadMessages() {
+      if (!currentRoomId) return;
+      const q = query(
+        collection(db, "messages"),
+        where("roomId", "==", currentRoomId),
+        orderBy("timestamp")
+      );
+      onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderChat(messages);
+      });
+    }
+
+    // チャットルーム一覧の取得（リアルタイム更新）
+    function loadChatrooms() {
+      const chatroomsContainer = document.getElementById("chatrooms-container");
+      const q = query(collection(db, "chatrooms"), orderBy("name"));
+      onSnapshot(q, (snapshot) => {
+        chatroomsContainer.innerHTML = "";
+        snapshot.docs.forEach(doc => {
+          const room = { id: doc.id, ...doc.data() };
+          const roomElement = document.createElement("div");
+          roomElement.classList.add("chatroom-item");
+          roomElement.textContent = `${room.icon || ""} ${room.name}`;
+          roomElement.addEventListener("click", () => {
+            // 選択状態のハイライト
+            document.querySelectorAll(".chatroom-item").forEach(item => item.classList.remove("active"));
+            roomElement.classList.add("active");
+            currentRoomId = room.id;
+            currentRoomName = room.name;
+            document.getElementById("chat-header").textContent = `${room.icon || ""} ${room.name}`;
+            loadMessages();
+          });
+          chatroomsContainer.appendChild(roomElement);
+        });
+      });
+    }
+
+    // メッセージのレンダリング
+    function renderChat(messages) {
+      const chatContainer = document.getElementById("chat-container");
+      chatContainer.innerHTML = "";
+      messages.forEach(msg => {
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("chat-message");
+        // タイムスタンプの整形（HH:MM 表示）
+        const date = new Date(msg.timestamp);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const timeString = `${hours}:${minutes}`;
+        messageElement.innerHTML = `
+          <div class="message-header">🧑‍💼 ${msg.user} <span class="message-time">${timeString}</span></div>
+          <div class="message-text">${msg.text}</div>
+          ${msg.readBy && msg.readBy.length ? `<div class="read-receipt">🟢 既読: ${msg.readBy.join(", ")}</div>` : ""}
+        `;
+        chatContainer.appendChild(messageElement);
+      });
+    }
+
+    // イベントリスナーの設定
+    window.onload = () => {
+      loadChatrooms();
+
+      const messageForm = document.getElementById("message-form");
+      const messageInput = document.getElementById("message-input");
+
+      messageForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (text && currentRoomId) {
+          sendMessage(text);
+          messageInput.value = "";
         }
+      });
 
-        // メッセージの取得（リアルタイム）
-        function loadMessages(callback) {
-            if (!currentRoom) return;
-            const q = query(collection(db, `rooms/${currentRoom}/messages`), orderBy("timestamp"));
-            onSnapshot(q, (snapshot) => {
-                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                callback(messages);
-            });
-        }
-
-        // メッセージの送信
-        async function sendMessage(user, text) {
-            if (!currentRoom) return;
-            try {
-                await addDoc(collection(db, `rooms/${currentRoom}/messages`), {
-                    user: user,
-                    text: text,
-                    timestamp: new Date().toISOString()
-                });
-            } catch (e) {
-                console.error("Error adding document: ", e);
-            }
-        }
-
-        // UI: チャットルームの表示
-        function renderRooms(rooms) {
-            const roomContainer = document.getElementById("room-container");
-            roomContainer.innerHTML = "";
-            rooms.forEach(room => {
-                const roomElement = document.createElement("div");
-                roomElement.classList.add("chat-room");
-                roomElement.innerHTML = room.name;
-                roomElement.addEventListener("click", () => {
-                    currentRoom = room.id;
-                    loadMessages(renderChat);
-                });
-                roomContainer.appendChild(roomElement);
-            });
-        }
-
-        // UI: チャットメッセージの表示
-        function renderChat(messages) {
-            const chatContainer = document.getElementById("chat-container");
-            chatContainer.innerHTML = "";
-            messages.forEach(msg => {
-                const messageElement = document.createElement("div");
-                messageElement.classList.add("chat-message");
-                messageElement.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-                chatContainer.appendChild(messageElement);
-            });
-        }
-
-        // イベントリスナー
-        window.onload = () => {
-            const sendButton = document.getElementById("send-button");
-            const messageInput = document.getElementById("message-input");
-            const userInput = document.getElementById("user-input");
-
-            loadRooms(renderRooms);
-
-            sendButton.addEventListener("click", () => {
-                const text = messageInput.value.trim();
-                const user = userInput.value.trim();
-                if (text && user) {
-                    sendMessage(user, text);
-                    messageInput.value = "";
-                }
-            });
-        };
-    </script>
+      // まだ実装していない機能についてはアラート表示などのプレースホルダーとしています
+      document.getElementById("search-button").addEventListener("click", () => {
+        alert("検索機能はまだ実装されていません。");
+      });
+      document.getElementById("export-button").addEventListener("click", () => {
+        alert("履歴エクスポート機能はまだ実装されていません。");
+      });
+      document.getElementById("voice-button").addEventListener("click", () => {
+        alert("音声メモ機能はまだ実装されていません。");
+      });
+    };
+  </script>
 </body>
 </html>
