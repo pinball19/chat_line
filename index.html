@@ -149,9 +149,11 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+    import { 
+      getFirestore, collection, addDoc, query, orderBy, where, onSnapshot, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
-    // Firebase の設定
+    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCJl6C4tIPfUIs9GrzRSUMujx2pW9a0RJU",
       authDomain: "chatline-f3c80.firebaseapp.com",
@@ -166,9 +168,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 現在選択中のチャットルームを管理
+    // 現在選択中のチャットルームIDとメッセージリスナーの解除用変数
     let currentRoomId = null;
-    let currentRoomName = "";
+    let unsubscribeMessages = null;
 
     // メッセージ送信（現在選択中のチャットルームへ）
     async function sendMessage(text) {
@@ -176,11 +178,9 @@
       try {
         await addDoc(collection(db, "messages"), {
           roomId: currentRoomId,
-          // ここでは例として「匿名」としていますが、ユーザー名の取得方法に応じて変更してください
-          user: "匿名",
+          user: "匿名",  // 必要に応じてユーザー名の取得方法を変更してください
           text: text,
-          timestamp: new Date().toISOString(),
-          // readBy などのフィールドも必要に応じて追加可能
+          timestamp: serverTimestamp(),
           readBy: []
         });
       } catch (e) {
@@ -191,12 +191,16 @@
     // 選択中のチャットルームのメッセージを取得（リアルタイム更新）
     function loadMessages() {
       if (!currentRoomId) return;
+      // 既存のリスナーがあれば解除
+      if (unsubscribeMessages) {
+        unsubscribeMessages();
+      }
       const q = query(
         collection(db, "messages"),
         where("roomId", "==", currentRoomId),
         orderBy("timestamp")
       );
-      onSnapshot(q, (snapshot) => {
+      unsubscribeMessages = onSnapshot(q, (snapshot) => {
         const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderChat(messages);
       });
@@ -218,7 +222,6 @@
             document.querySelectorAll(".chatroom-item").forEach(item => item.classList.remove("active"));
             roomElement.classList.add("active");
             currentRoomId = room.id;
-            currentRoomName = room.name;
             document.getElementById("chat-header").textContent = `${room.icon || ""} ${room.name}`;
             loadMessages();
           });
@@ -234,11 +237,14 @@
       messages.forEach(msg => {
         const messageElement = document.createElement("div");
         messageElement.classList.add("chat-message");
-        // タイムスタンプの整形（HH:MM 表示）
-        const date = new Date(msg.timestamp);
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
-        const timeString = `${hours}:${minutes}`;
+        // タイムスタンプの整形（Firestore Timestamp を Date に変換）
+        let timeString = "";
+        if (msg.timestamp && msg.timestamp.toDate) {
+          const date = msg.timestamp.toDate();
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          timeString = `${hours}:${minutes}`;
+        }
         messageElement.innerHTML = `
           <div class="message-header">🧑‍💼 ${msg.user} <span class="message-time">${timeString}</span></div>
           <div class="message-text">${msg.text}</div>
@@ -246,6 +252,8 @@
         `;
         chatContainer.appendChild(messageElement);
       });
+      // 新しいメッセージが追加されたときに自動スクロール
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
     // イベントリスナーの設定
@@ -264,7 +272,7 @@
         }
       });
 
-      // まだ実装していない機能についてはアラート表示などのプレースホルダーとしています
+      // プレースホルダー機能（実装予定）
       document.getElementById("search-button").addEventListener("click", () => {
         alert("検索機能はまだ実装されていません。");
       });
