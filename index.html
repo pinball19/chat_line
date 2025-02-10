@@ -1,134 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Application</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-        }
-        #chat-container {
-            width: 100%;
-            height: 400px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #ddd;
-            margin: 20px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .chat-message {
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            background: #e6f7ff;
-        }
-        .chat-message strong {
-            display: block;
-            color: #007bff;
-        }
-        #controls {
-            display: flex;
-            gap: 10px;
-        }
-        #controls input, #controls button {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-        #controls button {
-            background: #007bff;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-        }
-        #controls button:hover {
-            background: #0056b3;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Application with Read Receipts</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    }
+    #chat-container {
+      width: 100%;
+      height: 400px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #ddd;
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .chat-message {
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 5px;
+      background: #e6f7ff;
+    }
+    .chat-message strong {
+      display: block;
+      color: #007bff;
+    }
+    .read-receipt {
+      font-size: 0.8em;
+      color: #999;
+      margin-top: 2px;
+    }
+    #controls {
+      display: flex;
+      gap: 10px;
+    }
+    #controls input,
+    #controls button {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    #controls button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    #controls button:hover {
+      background: #0056b3;
+    }
+  </style>
 </head>
 <body>
-    <h1>Chat Application</h1>
-    <div id="chat-container"></div>
-    <div id="controls">
-        <input id="user-input" type="text" placeholder="Your name">
-        <input id="message-input" type="text" placeholder="Enter message">
-        <button id="send-button">Send</button>
-    </div>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+  <h1>Chat Application</h1>
+  <div id="chat-container"></div>
+  <div id="controls">
+    <input id="user-input" type="text" placeholder="Your name" />
+    <input id="message-input" type="text" placeholder="Enter message" />
+    <button id="send-button">Send</button>
+  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      onSnapshot,
+      updateDoc,
+      doc,
+      arrayUnion
+    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
-        // Firebase 設定
-        const firebaseConfig = {
-          apiKey: "AIzaSyCJl6C4tIPfUIs9GrzRSUMujx2pW9a0RJU",
-          authDomain: "chatline-f3c80.firebaseapp.com",
-          projectId: "chatline-f3c80",
-          storageBucket: "chatline-f3c80.firebasestorage.app",
-          messagingSenderId: "285961629279",
-          appId: "1:285961629279:web:cf23a01d0f3bb44dd835ea",
-          measurementId: "G-Y0HXRRVR66"
-        };
+    // Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJl6C4tIPfUIs9GrzRSUMujx2pW9a0RJU",
+      authDomain: "chatline-f3c80.firebaseapp.com",
+      projectId: "chatline-f3c80",
+      storageBucket: "chatline-f3c80.firebasestorage.app",
+      messagingSenderId: "285961629279",
+      appId: "1:285961629279:web:cf23a01d0f3bb44dd835ea",
+      measurementId: "G-Y0HXRRVR66"
+    };
 
-        // Firebase 初期化
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    // Firebase 初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        // メッセージの送信
-        async function sendMessage(user, text) {
-            try {
-                await addDoc(collection(db, "messages"), {
-                    user: user,
-                    text: text,
-                    timestamp: new Date().toISOString()
-                });
-            } catch (e) {
-                console.error("Error adding document: ", e);
-            }
+    // メッセージの送信
+    async function sendMessage(user, text) {
+      try {
+        await addDoc(collection(db, "messages"), {
+          user: user,
+          text: text,
+          timestamp: new Date().toISOString(),
+          readBy: [user] // 送信者は既読として追加
+        });
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      }
+    }
+
+    // メッセージの取得（リアルタイム）
+    function loadMessages(callback) {
+      const q = query(collection(db, "messages"), orderBy("timestamp"));
+      onSnapshot(q, (snapshot) => {
+        const messages = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }));
+        callback(messages);
+      });
+    }
+
+    // 既読状態を更新する関数
+    function markMessageAsRead(message, currentUser) {
+      // 既読配列がない場合は空配列とみなす
+      const readBy = message.readBy || [];
+      if (!readBy.includes(currentUser)) {
+        // Firestore のドキュメントを更新して、currentUser を readBy 配列に追加
+        updateDoc(doc(db, "messages", message.id), {
+          readBy: arrayUnion(currentUser)
+        }).catch((error) => {
+          console.error("Error updating read status: ", error);
+        });
+      }
+    }
+
+    // UI の生成
+    function renderChat(messages) {
+      const chatContainer = document.getElementById("chat-container");
+      chatContainer.innerHTML = "";
+      const currentUser = document.getElementById("user-input").value.trim();
+
+      messages.forEach((msg) => {
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("chat-message");
+        messageElement.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+
+        // 既読情報を表示（readBy があれば）
+        if (msg.readBy && msg.readBy.length > 0) {
+          const readReceipt = document.createElement("div");
+          readReceipt.classList.add("read-receipt");
+          readReceipt.textContent = "既読: " + msg.readBy.join(", ");
+          messageElement.appendChild(readReceipt);
         }
+        chatContainer.appendChild(messageElement);
 
-        // メッセージの取得（リアルタイム）
-        function loadMessages(callback) {
-            const q = query(collection(db, "messages"), orderBy("timestamp"));
-            onSnapshot(q, (snapshot) => {
-                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                callback(messages);
-            });
+        // 現在のユーザーが存在し、かつまだ既読に追加されていない場合は更新する
+        if (currentUser) {
+          markMessageAsRead(msg, currentUser);
         }
+      });
+    }
 
-        // UI の生成
-        function renderChat(messages) {
-            const chatContainer = document.getElementById("chat-container");
-            chatContainer.innerHTML = "";
-            messages.forEach(msg => {
-                const messageElement = document.createElement("div");
-                messageElement.classList.add("chat-message");
-                messageElement.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
-                chatContainer.appendChild(messageElement);
-            });
+    // イベントリスナー
+    window.onload = () => {
+      const sendButton = document.getElementById("send-button");
+      const messageInput = document.getElementById("message-input");
+      const userInput = document.getElementById("user-input");
+
+      loadMessages(renderChat);
+
+      sendButton.addEventListener("click", () => {
+        const text = messageInput.value.trim();
+        const user = userInput.value.trim();
+        if (text && user) {
+          sendMessage(user, text);
+          messageInput.value = "";
         }
-
-        // イベントリスナー
-        window.onload = () => {
-            const sendButton = document.getElementById("send-button");
-            const messageInput = document.getElementById("message-input");
-            const userInput = document.getElementById("user-input");
-
-            loadMessages(renderChat);
-
-            sendButton.addEventListener("click", () => {
-                const text = messageInput.value.trim();
-                const user = userInput.value.trim();
-                if (text && user) {
-                    sendMessage(user, text);
-                    messageInput.value = "";
-                }
-            });
-        };
-    </script>
+      });
+    };
+  </script>
 </body>
 </html>
